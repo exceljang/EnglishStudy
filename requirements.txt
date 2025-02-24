@@ -1,0 +1,6 @@
+streamlit
+pandas
+edge-tts==6.1.9
+openpyxl
+aiohttp
+asyncio
