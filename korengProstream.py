@@ -114,7 +114,7 @@ class KorEngPlayer:
         self.temp_dir.mkdir(exist_ok=True)
         
         # 엑셀 파일 로드
-        self.workbook = openpyxl.load_workbook('korengpro.xlsx')
+        self.workbook = openpyxl.load_workbook('korengPro.xlsx')
         self.sheet_names = self.workbook.sheetnames[:10]
         
         self.setup_interface()
