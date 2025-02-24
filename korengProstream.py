@@ -92,11 +92,12 @@ class KorEngPlayer:
         with container:
             st.markdown('<h1 class="title">English Learning</h1>', unsafe_allow_html=True)
         
-        # pygame 초기화 수정
+        # pygame 초기화 수정 - 오디오 없이도 실행되도록
         try:
-            pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=4096)
+            os.environ['SDL_AUDIODRIVER'] = 'dummy'
+            pygame.mixer.init()
         except Exception as e:
-            st.error(f"오디오 초기화 실패: {e}")
+            st.warning("오디오 장치를 찾을 수 없습니다. 음성이 재생되지 않을 수 있습니다.")
         
         # 세션 상태 초기화
         if 'playing' not in st.session_state:
@@ -110,14 +111,24 @@ class KorEngPlayer:
         self.temp_dir = Path("temp_audio")
         self.temp_dir.mkdir(exist_ok=True)
         
-        # 엑셀 파일 로드
+        # 엑셀 파일 로드 - 상대 경로 사용
         try:
-            excel_path = Path(__file__).parent / 'korengpro.xlsx'
-            self.workbook = openpyxl.load_workbook(str(excel_path))
+            excel_path = 'korengpro.xlsx'  # 현재 작업 디렉토리 기준
+            if not os.path.exists(excel_path):
+                st.error(f"엑셀 파일을 찾을 수 없습니다. 현재 디렉토리: {os.getcwd()}")
+                st.error("'korengpro.xlsx' 파일을 업로드해주세요.")
+                uploaded_file = st.file_uploader("Excel 파일 선택", type=['xlsx'])
+                if uploaded_file:
+                    with open('korengpro.xlsx', 'wb') as f:
+                        f.write(uploaded_file.getvalue())
+                    excel_path = 'korengpro.xlsx'
+                else:
+                    st.stop()
+            
+            self.workbook = openpyxl.load_workbook(excel_path)
             self.sheet_names = self.workbook.sheetnames[:10]
         except Exception as e:
             st.error(f"엑셀 파일 로드 실패: {e}")
-            st.error("'korengpro.xlsx' 파일이 프로그램과 같은 디렉토리에 있는지 확인해주세요.")
             st.stop()
         
         self.setup_interface()
