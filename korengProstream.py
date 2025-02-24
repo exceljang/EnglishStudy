@@ -293,7 +293,7 @@ class KorEngPlayer:
                 eng_text = sheet.cell(row=st.session_state.current_row, column=3).value
                 
                 # 한글 텍스트 표시
-                self.korean_container.markdown(f"<p style='color: white; font-size: 16px;'>{kor_text if kor_text else ''}</p>", unsafe_allow_html=True)
+                self.korean_container.markdown(f"<p style='color: white; font-size: 20px;'>{kor_text if kor_text else ''}</p>", unsafe_allow_html=True)
                 self.english_container.empty()
                 
                 # 한글 음성 생성 및 재생
@@ -301,8 +301,8 @@ class KorEngPlayer:
                     korean_audio_placeholder = st.empty()
                     with korean_audio_placeholder.container():
                         temp_file = f"temp_ko_{st.session_state.current_row}.wav"
-                        # 속도를 +20% 증가
-                        cmd = f'edge-tts --voice "ko-KR-SunHiNeural" --text "{kor_text}" --rate="+20%" --write-media {temp_file}'
+                        # 속도를 +25%로 조정 (30%에서 감소)
+                        cmd = f'edge-tts --voice "ko-KR-SunHiNeural" --text "{kor_text} " --rate="+25%" --write-media {temp_file}'  # 텍스트 끝에 공백 추가
                         subprocess.run(cmd, shell=True)
                         
                         with open(temp_file, "rb") as audio_file:
@@ -319,10 +319,10 @@ class KorEngPlayer:
                         
                         os.remove(temp_file)
                         
-                        # 재생 시간도 20% 감소
+                        # 한글 재생 시간 조정
                         korean_chars = sum(1 for c in kor_text if ord('가') <= ord(c) <= ord('힣'))
                         other_chars = len(kor_text) - korean_chars
-                        duration = ((korean_chars * 0.2) + (other_chars * 0.1) + 0.3) * 0.8
+                        duration = ((korean_chars * 0.18) + (other_chars * 0.08) + 0.3) * 0.75  # 재생 시간 조정
                         time.sleep(duration)
                     
                     korean_audio_placeholder.empty()
@@ -331,15 +331,15 @@ class KorEngPlayer:
                     return
                 
                 # 영어 텍스트 표시
-                self.english_container.markdown(f"<p style='color: white; font-size: 16px;'>{eng_text if eng_text else ''}</p>", unsafe_allow_html=True)
+                self.english_container.markdown(f"<p style='color: white; font-size: 20px;'>{eng_text if eng_text else ''}</p>", unsafe_allow_html=True)
                 
                 # 영어 음성 생성 및 재생
                 if eng_text and st.session_state.playing:
                     english_audio_placeholder = st.empty()
                     with english_audio_placeholder.container():
                         temp_file = f"temp_en_{st.session_state.current_row}.wav"
-                        # 속도를 +20% 증가
-                        cmd = f'edge-tts --voice "en-US-JennyNeural" --text "{eng_text}" --rate="+20%" --write-media {temp_file}'
+                        # 속도를 +30% 증가
+                        cmd = f'edge-tts --voice "en-US-JennyNeural" --text "{eng_text}" --rate="+30%" --write-media {temp_file}'
                         subprocess.run(cmd, shell=True)
                         
                         with open(temp_file, "rb") as audio_file:
@@ -356,8 +356,8 @@ class KorEngPlayer:
                         
                         os.remove(temp_file)
                         
-                        # 재생 시간도 20% 감소
-                        duration = ((len(eng_text) * 0.1) + 0.3) * 0.8
+                        # 재생 시간도 30% 감소
+                        duration = ((len(eng_text) * 0.08) + 0.2) * 0.7
                         time.sleep(duration)
                     
                     english_audio_placeholder.empty()
@@ -371,7 +371,7 @@ class KorEngPlayer:
                             st.session_state.playing = False
                             return
                     
-                    time.sleep(0.05)
+                    time.sleep(0.01)  # 다음 항목으로 넘어가는 간격 감소
                     st.rerun()
                 
             except Exception as e:
