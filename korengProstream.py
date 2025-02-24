@@ -7,6 +7,8 @@ from pathlib import Path
 import base64
 import pygame.mixer
 import time
+from gtts import gTTS  # 파일 상단에 추가
+import subprocess
 
 class KorEngPlayer:
     def __init__(self):
@@ -65,7 +67,7 @@ class KorEngPlayer:
                     padding: 0 5px !important;
                 }
                 .title {
-                    font-size: 24px !important;
+                    font-size: 20px !important;
                 }
                 .metric-label {
                     font-size: 14px !important;
@@ -77,20 +79,13 @@ class KorEngPlayer:
                 .stSelectbox label, .stCheckbox label {
                     color: #FFFFFF !important;
                 }
-                /* 체크박스 레이블 추가 스타일 */
-                .st-emotion-cache-1gulkj5, .st-emotion-cache-1t9giqp {
-                    color: #FFFFFF !important;
-                }
-                label[data-testid="stCheckbox"] {
-                    color: #FFFFFF !important;
-                }
             </style>
         """, unsafe_allow_html=True)
         
         # 중앙 정렬을 위한 컨테이너
         container = st.container()
         with container:
-            st.markdown('<h1 class="title">English Learning</h1>', unsafe_allow_html=True)
+            st.markdown('<h2 class="title">English Learning</h2>', unsafe_allow_html=True)
         
         # pygame 초기화 수정 - 오디오 없이도 실행되도록
         try:
@@ -106,6 +101,8 @@ class KorEngPlayer:
             st.session_state.current_row = 2
         if 'repeat' not in st.session_state:
             st.session_state.repeat = False
+        if 'last_played_row' not in st.session_state:
+            st.session_state.last_played_row = None
             
         # 임시 디렉토리 설정
         self.temp_dir = Path("temp_audio")
@@ -150,8 +147,7 @@ class KorEngPlayer:
             if os.path.exists(filename):
                 with open(filename, 'rb') as f:
                     audio_bytes = f.read()
-                st.audio(audio_bytes, format='audio/mp3')
-                time.sleep(0.1)  # 짧은 대기 시간 추가
+                self.audio_container.audio(audio_bytes, format='audio/mp3', start_time=0)
         except Exception as e:
             st.error(f"음성 재생 오류: {e}")
 
@@ -188,27 +184,8 @@ class KorEngPlayer:
         
         if selected_sheet and selected_sheet != "선택하세요":
             sheet = self.workbook[selected_sheet]
-            total_rows = sheet.max_row - 1
             
-            # 진행률 슬라이더 (1부터 시작)
-            progress = st.slider(
-                "진행률",
-                1, total_rows,
-                max(1, st.session_state.current_row - 1),
-                key='progress_slider',
-                label_visibility="collapsed"
-            )
-            st.session_state.current_row = progress + 1
-            
-            # 진행률 숫자와 반복재생 체크박스를 나란히 배치
-            status_cols = st.columns([1, 6])  # 비율 조정
-            with status_cols[0]:
-                current_number = max(1, st.session_state.current_row - 1)
-                st.markdown(f'<p class="metric-value">{current_number}/{total_rows}</p>', unsafe_allow_html=True)
-            with status_cols[1]:
-                st.checkbox("Rept", key='repeat', help=None)
-            
-            # 버튼 컨트롤 - Start와 Stop 버튼만 표시
+            # 버튼 컨트롤
             button_cols = st.columns([1, 1, 5])  # 비율 조정
             with button_cols[0]:
                 if st.button("Start", use_container_width=False):
@@ -220,10 +197,90 @@ class KorEngPlayer:
                     pygame.mixer.quit()
                     self.cleanup()
             
-            # 텍스트 표시를 위한 컨테이너 생성 (버튼 아래에 위치)
-            st.write("")  # 간격 추가
+            # 진행률 표시 (버튼과 텍스트 사이)
+            st.write("")  # 작은 간격 추가
+            total_rows = sheet.max_row - 1  # 헤더 제외
+            current_progress = (st.session_state.current_row - 2) / total_rows if total_rows > 0 else 0
+            
+            # 슬라이더바와 진행 표시
+            st.markdown("""
+                <style>
+                    .block-container {
+                        padding-left: 1rem;
+                        padding-right: 1rem;
+                    }
+                    .stProgress > div > div {
+                        background-color: #1E1E1E;
+                    }
+                    .progress-container {
+                        position: relative;
+                        width: 720px;
+                        padding-left: 0;
+                        padding-right: 0;
+                        margin-left: 0;
+                        margin-right: 0;
+                        margin-bottom: 25px;
+                    }
+                    .progress-number {
+                        position: absolute;
+                        left: 0;
+                        right: 0;
+                        top: -10px;
+                        text-align: center;
+                    }
+                    .progress-start {
+                        position: absolute;
+                        left: 0;
+                        bottom: -25px;
+                        color: #FFFFFF;
+                    }
+                    .progress-end {
+                        position: absolute;
+                        right: 0;
+                        bottom: -25px;
+                        color: #FFFFFF;
+                    }
+                    .current-number {
+                        background-color: #2E2E2E;
+                        border-radius: 15px;
+                        padding: 2px 10px;
+                        color: #FFFFFF;
+                        display: inline-block;
+                        position: absolute;
+                        left: calc(""" + str(current_progress * 100) + """% - 15px);
+                        transform: translateX(-50%);
+                    }
+                    .stProgress {
+                        max-width: 720px;
+                        padding-left: 0;
+                        padding-right: 0;
+                        margin-left: 0;
+                        margin-right: 0;
+                    }
+                    .element-container {
+                        padding-left: 0;
+                        padding-right: 0;
+                    }
+                </style>
+                <div class="progress-container">
+                    <div class="progress-number">
+                        <span class="current-number">""" + str(st.session_state.current_row - 1) + """</span>
+                    </div>
+                    <div class="progress-start">1</div>
+                    <div class="progress-end">""" + str(total_rows) + """</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            st.progress(current_progress)
+            st.write("")  # 작은 간격 추가
+            
+            # 텍스트 컨테이너 생성
             self.korean_container = st.empty()
             self.english_container = st.empty()
+            
+            # 오디오 컨테이너는 숨김 처리
+            with st.empty():
+                self.audio_container = st.container()
             
             # 재생 상태 확인 및 실행
             if st.session_state.playing:
@@ -231,48 +288,127 @@ class KorEngPlayer:
 
     def play_current_item(self, sheet):
         if st.session_state.current_row <= sheet.max_row:
-            # 현재 행의 텍스트 가져오기
-            kor_text = sheet.cell(row=st.session_state.current_row, column=2).value
-            eng_text = sheet.cell(row=st.session_state.current_row, column=3).value
-            
-            # 한글 텍스트 표시
-            self.korean_container.markdown(f"<p style='color: white; font-size: 20px;'>{kor_text if kor_text else ''}</p>", unsafe_allow_html=True)
-            self.english_container.empty()
-            
-            # 한글 음성 생성 및 재생
-            if kor_text:
-                asyncio.run(self.play_text(kor_text, "ko"))
-            
-            if not st.session_state.playing:
-                return
-            
-            # 영어 텍스트 표시
-            self.english_container.markdown(f"<p style='color: white; font-size: 20px;'>{eng_text if eng_text else ''}</p>", unsafe_allow_html=True)
-            
-            # 영어 음성 생성 및 재생
-            if eng_text:
-                asyncio.run(self.play_text(eng_text, "en"))
-            
-            # 진행률 업데이트를 위해 rerun 전에 현재 행 증가
-            next_row = st.session_state.current_row + 1
-            if next_row > sheet.max_row:
-                if st.session_state.repeat:
-                    next_row = 2
-                else:
-                    st.session_state.playing = False
+            try:
+                # 현재 행의 텍스트 가져오기
+                kor_text = sheet.cell(row=st.session_state.current_row, column=2).value
+                eng_text = sheet.cell(row=st.session_state.current_row, column=3).value
+                
+                # 한글 텍스트 표시
+                self.korean_container.markdown(f"<p style='color: white; font-size: 16px;'>{kor_text if kor_text else ''}</p>", unsafe_allow_html=True)
+                self.english_container.empty()
+                
+                # 한글 음성 생성 및 재생
+                if kor_text and st.session_state.playing:
+                    korean_audio_placeholder = st.empty()
+                    with korean_audio_placeholder.container():
+                        temp_file = f"temp_ko_{st.session_state.current_row}.wav"
+                        # 속도를 +20% 증가
+                        cmd = f'edge-tts --voice "ko-KR-SunHiNeural" --text "{kor_text}" --rate="+20%" --write-media {temp_file}'
+                        subprocess.run(cmd, shell=True)
+                        
+                        with open(temp_file, "rb") as audio_file:
+                            audio_bytes = audio_file.read()
+                            b64 = base64.b64encode(audio_bytes).decode()
+                            st.markdown(
+                                f"""
+                                <audio autoplay="true" onended="this.remove();">
+                                    <source src="data:audio/wav;base64,{b64}" type="audio/wav">
+                                </audio>
+                                """,
+                                unsafe_allow_html=True
+                            )
+                        
+                        os.remove(temp_file)
+                        
+                        # 재생 시간도 20% 감소
+                        korean_chars = sum(1 for c in kor_text if ord('가') <= ord(c) <= ord('힣'))
+                        other_chars = len(kor_text) - korean_chars
+                        duration = ((korean_chars * 0.2) + (other_chars * 0.1) + 0.3) * 0.8
+                        time.sleep(duration)
+                    
+                    korean_audio_placeholder.empty()
+                
+                if not st.session_state.playing:
                     return
-            
-            st.session_state.current_row = next_row
-            time.sleep(0.5)
-            st.rerun()
+                
+                # 영어 텍스트 표시
+                self.english_container.markdown(f"<p style='color: white; font-size: 16px;'>{eng_text if eng_text else ''}</p>", unsafe_allow_html=True)
+                
+                # 영어 음성 생성 및 재생
+                if eng_text and st.session_state.playing:
+                    english_audio_placeholder = st.empty()
+                    with english_audio_placeholder.container():
+                        temp_file = f"temp_en_{st.session_state.current_row}.wav"
+                        # 속도를 +20% 증가
+                        cmd = f'edge-tts --voice "en-US-JennyNeural" --text "{eng_text}" --rate="+20%" --write-media {temp_file}'
+                        subprocess.run(cmd, shell=True)
+                        
+                        with open(temp_file, "rb") as audio_file:
+                            audio_bytes = audio_file.read()
+                            b64 = base64.b64encode(audio_bytes).decode()
+                            st.markdown(
+                                f"""
+                                <audio autoplay="true" onended="this.remove();">
+                                    <source src="data:audio/wav;base64,{b64}" type="audio/wav">
+                                </audio>
+                                """,
+                                unsafe_allow_html=True
+                            )
+                        
+                        os.remove(temp_file)
+                        
+                        # 재생 시간도 20% 감소
+                        duration = ((len(eng_text) * 0.1) + 0.3) * 0.8
+                        time.sleep(duration)
+                    
+                    english_audio_placeholder.empty()
+                
+                if st.session_state.playing:
+                    st.session_state.current_row += 1
+                    if st.session_state.current_row > sheet.max_row:
+                        if st.session_state.repeat:
+                            st.session_state.current_row = 2
+                        else:
+                            st.session_state.playing = False
+                            return
+                    
+                    time.sleep(0.05)
+                    st.rerun()
+                
+            except Exception as e:
+                st.error(f"재생 오류: {e}")
+                st.session_state.playing = False
 
-    async def play_text(self, text, language):
+    async def generate_and_play_speech(self, text, language):
         try:
-            filename = await self.generate_speech(text, language)
-            if filename:
-                self.play_audio(filename)
+            voice = "ko-KR-SunHiNeural" if language == "ko" else "en-US-JennyNeural"
+            communicate = edge_tts.Communicate(text, voice)
+            
+            # 음성 생성
+            audio_data = bytearray()
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    audio_data.extend(chunk["data"])
+            
+            # 음성 재생을 위한 HTML 생성
+            b64_audio = base64.b64encode(audio_data).decode()
+            audio_html = f"""
+                <script>
+                    var audio = new Audio("data:audio/mp3;base64,{b64_audio}");
+                    audio.play().then(() => {{
+                        audio.addEventListener('ended', () => {{
+                            setTimeout(() => window.streamlit.scriptRunOnce(), 100);
+                        }});
+                    }});
+                </script>
+            """
+            st.markdown(audio_html, unsafe_allow_html=True)
+            
+            # 음성 길이에 따른 대기
+            await asyncio.sleep(len(text) * 0.1)
+            
         except Exception as e:
-            st.error(f"음성 재생 오류: {e}")
+            st.error(f"음성 생성 오류: {e}")
 
     def cleanup(self):
         try:
