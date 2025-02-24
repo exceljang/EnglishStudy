@@ -94,12 +94,9 @@ class KorEngPlayer:
         
         # pygame 초기화 수정
         try:
-            pygame.mixer.init(devicename='default')
-        except:
-            try:
-                pygame.mixer.init(devicename=None)
-            except Exception as e:
-                st.error(f"오디오 초기화 실패: {e}")
+            pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=4096)
+        except Exception as e:
+            st.error(f"오디오 초기화 실패: {e}")
         
         # 세션 상태 초기화
         if 'playing' not in st.session_state:
@@ -114,8 +111,14 @@ class KorEngPlayer:
         self.temp_dir.mkdir(exist_ok=True)
         
         # 엑셀 파일 로드
-        self.workbook = openpyxl.load_workbook('korengPro.xlsx')
-        self.sheet_names = self.workbook.sheetnames[:10]
+        try:
+            excel_path = Path(__file__).parent / 'korengpro.xlsx'
+            self.workbook = openpyxl.load_workbook(str(excel_path))
+            self.sheet_names = self.workbook.sheetnames[:10]
+        except Exception as e:
+            st.error(f"엑셀 파일 로드 실패: {e}")
+            st.error("'korengpro.xlsx' 파일이 프로그램과 같은 디렉토리에 있는지 확인해주세요.")
+            st.stop()
         
         self.setup_interface()
 
