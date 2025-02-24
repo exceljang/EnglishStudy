@@ -7,7 +7,6 @@ from pathlib import Path
 import base64
 import pygame.mixer
 import time
-from gtts import gTTS  # 파일 상단에 추가
 import subprocess
 
 class KorEngPlayer:
