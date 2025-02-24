@@ -148,11 +148,10 @@ class KorEngPlayer:
     def play_audio(self, filename):
         try:
             if os.path.exists(filename):
-                time.sleep(0.1)
-                pygame.mixer.music.load(filename)
-                pygame.mixer.music.play()
-                while pygame.mixer.music.get_busy():
-                    time.sleep(0.1)
+                with open(filename, 'rb') as f:
+                    audio_bytes = f.read()
+                st.audio(audio_bytes, format='audio/mp3')
+                time.sleep(0.1)  # 짧은 대기 시간 추가
         except Exception as e:
             st.error(f"음성 재생 오류: {e}")
 
