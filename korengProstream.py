@@ -92,8 +92,14 @@ class KorEngPlayer:
         with container:
             st.markdown('<h1 class="title">English Learning</h1>', unsafe_allow_html=True)
         
-        # pygame 초기화
-        pygame.mixer.init()
+        # pygame 초기화 수정
+        try:
+            pygame.mixer.init(devicename='default')
+        except:
+            try:
+                pygame.mixer.init(devicename=None)
+            except Exception as e:
+                st.error(f"오디오 초기화 실패: {e}")
         
         # 세션 상태 초기화
         if 'playing' not in st.session_state:
