@@ -109,15 +109,15 @@ class KorEngPlayer:
         
         # 엑셀 파일 로드 - 상대 경로 사용
         try:
-            excel_path = 'korengpro.xlsx'  # 현재 작업 디렉토리 기준
+            excel_path = 'Korengpro.xlsx'  # 현재 작업 디렉토리 기준
             if not os.path.exists(excel_path):
                 st.error(f"엑셀 파일을 찾을 수 없습니다. 현재 디렉토리: {os.getcwd()}")
-                st.error("'korengpro.xlsx' 파일을 업로드해주세요.")
+                st.error("'Korengpro.xlsx' 파일을 업로드해주세요.")
                 uploaded_file = st.file_uploader("Excel 파일 선택", type=['xlsx'])
                 if uploaded_file:
-                    with open('korengpro.xlsx', 'wb') as f:
+                    with open('Korengpro.xlsx', 'wb') as f:
                         f.write(uploaded_file.getvalue())
-                    excel_path = 'korengpro.xlsx'
+                    excel_path = 'Korengpro.xlsx'
                 else:
                     st.stop()
             
